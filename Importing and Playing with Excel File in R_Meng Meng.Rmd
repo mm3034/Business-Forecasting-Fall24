@@ -1,0 +1,134 @@
+---
+title: "Importing and Playing with Excel File in R"
+author: "Meng Meng"
+output: html_document
+date: "2024-09-17"
+---
+
+# import dataset
+```{r}
+#Import dataset
+Typical_Employee_Survey_Data <- read.csv("~/Desktop/Typical_Employee_Survey_Data.csv", header=FALSE)
+```
+
+#Add Header Row
+```{r}
+header <- c("Age", "Gender", "Job_Satisfaction", "Key_Characteristic", "Years_Employed", "Promotion_Likelihood", "Decision_involvement", "Budget_participation", "Organizational_pride", "Job_loyalty", "Workplace_relations")
+colnames(Typical_Employee_Survey_Data) <- header
+```
+
+# Print out the 5-point summary and boxplot (numerical columns) for each column
+```{r}
+#5-point summary
+summary(Typical_Employee_Survey_Data)
+
+#boxplot
+boxplot(Typical_Employee_Survey_Data$Age)
+boxplot(Typical_Employee_Survey_Data$Years_Employed)
+```
+
+# Convert the columns that need to be converted to Factors
+```{r}
+Typical_Employee_Survey_Data[c("Gender", "Job_Satisfaction", "Key_Characteristic", "Promotion_Likelihood", "Decision_involvement", "Budget_participation", "Organizational_pride", "Job_loyalty", "Workplace_relations")] <- lapply(Typical_Employee_Survey_Data[c("Gender", "Job_Satisfaction", "Key_Characteristic", "Promotion_Likelihood", "Decision_involvement", "Budget_participation", "Organizational_pride", "Job_loyalty", "Workplace_relations")], as.factor)
+```
+
+# Plot the right visual for each column
+```{r}
+#Age
+hist(Typical_Employee_Survey_Data$Age, main = "Age", xlab = "Age", ylab = "Number of Employees")
+
+#Gender
+Typical_Employee_Survey_Data$Gender <- factor(Typical_Employee_Survey_Data$Gender, levels = c(1, 2), labels = c("Male", "Female"))
+gender_count <- table(Typical_Employee_Survey_Data$Gender)
+gender_labels <- paste(names(gender_count), round(100 * gender_count / sum(gender_count), 1), "%")
+pie(gender_count, labels = gender_labels, main="Gender")
+
+#Job_Satisfaction
+Typical_Employee_Survey_Data$Job_Satisfaction <- factor(Typical_Employee_Survey_Data$Job_Satisfaction, levels = c(1, 2, 3, 4), labels = c("Very\nSatisfied", "Moderately\nSatisfied", "A Little\nDissatisfied", "Very\nDissatisfied"))
+js_count <- table(Typical_Employee_Survey_Data$Job_Satisfaction)
+barplot(js_count, main = "Job Satisfaction Levels", xlab = "Satisfaction Levels",  ylab = "Number of Employees")
+
+#Key_Characteristic
+Typical_Employee_Survey_Data$Key_Characteristic <- factor(Typical_Employee_Survey_Data$Key_Characteristic, levels = c(1, 2, 3, 4, 5), labels = c("High Income", "No Danger of Being Fired", "Flexible Hours", "Opportunities for Advancement", "Enjoying the Work"))
+jc_count <- table(Typical_Employee_Survey_Data$Key_Characteristic)
+barplot(jc_count, main = "Important Job Characteristic", xlab = "Job Characteristic",  ylab = "Number of Employees")
+
+#Years_Employed
+hist(Typical_Employee_Survey_Data$Years_Employed, main = "Years Employed", xlab = "Years", ylab = "Frequency")
+
+#Promotion_Likelihood
+Typical_Employee_Survey_Data$Promotion_Likelihood <- factor(Typical_Employee_Survey_Data$Promotion_Likelihood, levels = c(1, 2, 3, 4, 5), labels = c("Very Likely", "Likely", "Not Sure", "Unlikely", "Very Unlikely"))
+pl_count <- table(Typical_Employee_Survey_Data$Promotion_Likelihood)
+barplot(pl_count, main = "Promotion Likelihood Levels", xlab = "Likelihood of Being Promoted",  ylab = "Number of Employees")
+
+#Decision_Involvement
+Typical_Employee_Survey_Data$Decision_involvement <- factor(Typical_Employee_Survey_Data$Decision_involvement, levels = c(1, 2, 3, 4), labels = c("Always", "Much of the Time", "Sometimes", "Never"))
+di_count <- table(Typical_Employee_Survey_Data$Decision_involvement)
+barplot(di_count, main = "Decision Making Participation", xlab = "Response",  ylab = "Count")
+
+#Budget_participation
+Typical_Employee_Survey_Data$Budget_participation <- factor(Typical_Employee_Survey_Data$Budget_participation, levels = c(1, 2), labels = c("Yes", "No"))
+bp_count <- table(Typical_Employee_Survey_Data$Budget_participation)
+bp_labels <- paste(names(bp_count), round(100 * bp_count / sum(bp_count), 1), "%")
+pie(bp_count, labels = bp_labels, main="Participation in Budgetary Decisions")
+
+#Organizational_pride
+Typical_Employee_Survey_Data$Organizational_pride <- factor(Typical_Employee_Survey_Data$Organizational_pride, levels = c(1, 2, 3, 4), labels = c("Very\nProud", "Somewhat\nProud", "Indifferent", "Not At All\nProud"))
+op_count <- table(Typical_Employee_Survey_Data$Organizational_pride)
+barplot(op_count, main = "Pride in Working for the Organization", xlab = "Pride Level",  ylab = "Number of Employees")
+
+#Job_loyalty
+Typical_Employee_Survey_Data$Job_loyalty <- factor(Typical_Employee_Survey_Data$Job_loyalty, levels = c(1, 2, 3, 4, 5), labels = c("Very Likely", "Likely", "Not Sure", "Unlikely", "Very Unlikely"))
+jl_count <- table(Typical_Employee_Survey_Data$Job_loyalty)
+barplot(jl_count, main = "Likelihood of Turning Down Another Job for More Pay", xlab = "Likelihood",  ylab = "Number of Employees")
+
+#Workplace_relations
+Typical_Employee_Survey_Data$Workplace_relations <- factor(Typical_Employee_Survey_Data$Workplace_relations, levels = c(1, 2, 3, 4, 5), labels = c("Very Good", "Good", "So So", "Bad", "Very Bad"))
+wr_count <- table(Typical_Employee_Survey_Data$Workplace_relations)
+barplot(wr_count, main = "Workplace Relations Between Coworkers and Colleagues", xlab = "Workplace Relations",  ylab = "Number of Employees")
+```
+
+# Plot scatter plots to show few relationships
+```{r}
+#Age vs Years Employed
+plot(Typical_Employee_Survey_Data$Age, Typical_Employee_Survey_Data$Years_Employed, main = "Age vs. Years Employed", xlab = "Age", ylab = "Years_Employed")
+
+#Age vs Promotion Likelihood
+library(ggplot2)
+ggplot(Typical_Employee_Survey_Data, aes(x = Age, y = Promotion_Likelihood)) +
+  geom_count(color = "red") +
+  labs(title = "Age vs. Promotion Likelihood",
+       x = "Age", 
+       y = "Promotion_Likelihood") +
+  theme_minimal() +
+  theme(panel.grid.major = element_line(color = "grey80"))
+
+#Age vs Workplace Relations
+library(ggplot2)
+ggplot(Typical_Employee_Survey_Data, aes(x = Age, y = Workplace_relations)) +
+  geom_count(color = "red") +
+  labs(title = "Age vs. Workplace Relations",
+       x = "Age", 
+       y = "Workplace_relations") +
+  theme_minimal() +
+  theme(panel.grid.major = element_line(color = "grey80"))
+
+#Years Employed vs Job Loyalty
+ggplot(Typical_Employee_Survey_Data, aes(x = Years_Employed, y = Job_loyalty)) +
+  geom_count(color = "red") +
+  labs(title = "Years Employed vs. Job Loyalty",
+       x = "Years_Employed", 
+       y = "Job_loyalty") +
+  theme_minimal() +
+  theme(panel.grid.major = element_line(color = "grey80"))
+
+#Years Employed vs Organizational Pride
+ggplot(Typical_Employee_Survey_Data, aes(x = Years_Employed, y = Organizational_pride)) +
+  geom_count(color = "red") +
+  labs(title = "Years Employed vs. Organizational Pride",
+       x = "Years_Employed", 
+       y = "Organizational_pride") +
+  theme_minimal() +
+  theme(panel.grid.major = element_line(color = "grey80"))
+```
+
