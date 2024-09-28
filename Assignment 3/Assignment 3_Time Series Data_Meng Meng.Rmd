@@ -1,0 +1,46 @@
+---
+title: "Assignment 3_Time Series Data_Meng Meng"
+author: "Meng Meng"
+date: "2024-09-28"
+output: html_document
+---
+
+# Prepare Dataset
+```{r}
+#import CSV file
+Unemployment_in_America <- read.csv("~/Desktop/Unemployment in America.csv")
+```
+
+# Detailed Description
+```{r}
+#variable names
+original_variable_names <- c("FIPS Code", "State/Area", "Year", "Month", "Total Civilian Non-Institutional Population in State/Area", "Total Civilian Labor Force in State/Area", "Percent (%) of State/Area's Population", "Total Employment in State/Area", "Percent (%) of Labor Force Employed in State/Area", "Total Unemployment in State/Area", "Percent (%) of Labor Force Unemployed in State/Area")
+
+#readable variable names
+readable_variable_names <- c("FIPS_Code", "State", "Year", "Month", "Non-Institutional_Civilian_Population", "Eligible_Labor_Force", "Labor_Force_Participation_Rate", "Total_Employment", "Employment_Rate", "Total_Unemployment", "Unemployment_Rate")
+
+#measurement units
+measurement_units <- c("Integer", "String", "yyyy", "mm", "Character", "Character", "Numeric", "Character", "Numeric", "Character", "Numeric")
+
+#allowed values
+allowed_values <- c("Numeric Code", "State Name or Area", "1976-2022", "1-12", "Non-negative Integer", "Non-negative Integer", "0.0-100.0", "Non-negative Integer", "0.0-100.0", "Non-negative Integer", "0.0-100.0")
+
+#definition of the variable
+definitions <- c('The numeric Federal Information Processing Standards (FIPS) identifier for the state/area.', 'Name of the state/area.', 'Year of the tracked statistics for the state/area.', 'Month of the tracked statistics for the state/area.', 'Total number of non-institutionalized civilians residing in the state/area.', 'Total number of civilians eligible for employment that reside in the state/area.', 'Percent of civilians eligible for employment out of the total non-institutionalized civilian population.', 'Total number of civilians currently employed in the state/area.', 'Percent of currently employed civilians out of the total non-institutionalized civilian population.', 'Total number of civilians currently unemployed in the state/area.', 'Percent of currently unemployed civilians out of the total non-institutionalized civilian population.')
+
+#data dictionary
+data_dictionary <- data.frame(Variable_Name = original_variable_names, Readable_Variable_Name = readable_variable_names, Measurement_Unit = measurement_units, Allowed_Values = allowed_values, Definition_of_the_Variable = definitions, stringsAsFactors = FALSE)
+print(data_dictionary)
+write.csv(data_dictionary, "data_dictionary.csv", row.names = FALSE)
+```
+
+# Data Collection Methodology
+```{r}
+# The data is collected by the Bureau of Labor Statistics (BLS), a principal fact-finding agency for the Federal Government in the broad field of labor economics and statistics. The BLS uses various methods to collect these data, including Current Population Survey(CPS), state cooperation, administrative data, etc. The data is collected and published monthly, starting from January 1976 to December 2022. The dataset covers all 50 US states, the District of Columbia, and specific metropolitan areas like New York City and Los Angeles-Long Beach-Glendale.
+```
+
+# Why does this data set intrigue you?
+```{r}
+# I'm interested in this dataset beacause it allows me to explore long-term trends in unemployment, economic cycles, and the impact of major events on employment across different states and regions. In addition, this dataset covers unemployment data for all states and some large cities in the United States allowing for a comprehensive comparison and analysis. By analysing this dataset, we can get some valuable insights such as how the unemploment rate differ from the region, the changes of labor market over time, and so on.
+```
+
