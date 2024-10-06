@@ -1,0 +1,184 @@
+---
+title: "Assignment 4_Running Forecasting Model_Meng Meng"
+author: "Meng Meng"
+date: "2024-10-06"
+output: html_document
+---
+
+# Import Libraries and define functions to apply and evaluate models
+```{r}
+library(fpp)
+library(fpp2)
+library(TTR)
+library(readr)
+
+data <- read_csv("Unemployment in America.csv")
+
+# Custom methods to work with multi-variable dataset
+plot_all_columns <- function(data, x) {
+  for(i in 1:ncol(data)) {
+    col_name <- names(data)[i]
+    plot(x, data[[i]], main=col_name, ylab=col_name, xlab="Year")
+  }
+}
+
+acf_all_columns <- function(data){
+  for(i in 1:ncol(data)) {
+    col_name <- names(data)[i]
+    Acf(data[[i]], main=col_name)
+  }
+}
+
+apply_model_all_columns <- function(model, data, ...){
+  for(i in 1:ncol(data)) {
+    col_name <- names(data)[i]
+    mean_forecast <- model(data[[i]], ...)
+    plot(mean_forecast, main=paste("Predicted ",col_name))
+  }
+}
+
+apply_models_all_columns <- function(data){
+  for(i in 1:ncol(data)) {
+    col_name <- names(data)[i]
+    monthly_ts <- ts(data[[i]], frequency = 12)
+    mean_forecast <- meanf(monthly_ts,12)
+    naive_forecast <- naive(monthly_ts,12)
+    rwf_forecast <- rwf(monthly_ts,12, drift=TRUE)
+    snaive_forecast <- snaive(monthly_ts,12)
+    MA5_forecast <- ma(monthly_ts,order=12)
+
+    ets_model <- ets(monthly_ts)
+    ets_forecast <- forecast(ets_model, h = 12)
+    
+    hw_model <- HoltWinters(monthly_ts)
+    hw_forecast <- forecast(hw_model, h = 12)
+    
+    plot(mean_forecast, main = paste("Prediction for column ", col_name))
+    lines(naive_forecast$mean,col="red")
+    lines(rwf_forecast$mean,col="green")
+    lines(snaive_forecast$mean,col="blue")
+    lines(MA5_forecast,col="pink")
+    lines(ets_forecast$mean, col = "purple")
+    lines(hw_forecast$mean, col = "yellow")
+    legend("topleft", 
+           legend = c("Mean", "Naive", "Random Walk with Drift", "Seasonal Naive", 
+                      "Moving Average (12)", "Exponential Smoothing", "Holt-Winters"),
+           col = c("black", "red", "green", "blue", "pink", "purple", "yellow"),
+           lty = 1,
+           cex = 0.7,
+           bg = "transparent",
+           box.lty = 0)
+  }
+}
+
+evaluate_models_all_columns <- function(data, test_periods = 12) {
+  results <- list()
+  
+  for(i in 1:ncol(data)) {
+    col_name <- names(data)[i]
+    monthly_ts <- ts(data[[i]], frequency = 12)
+    
+    # Split data into training and test sets
+    train_data <- head(monthly_ts, n = length(monthly_ts) - test_periods)
+    test_data <- tail(monthly_ts, n = test_periods)
+    
+    # Generate forecasts
+    mean_forecast <- meanf(train_data, h = test_periods)
+    naive_forecast <- naive(train_data, h = test_periods)
+    rwf_forecast <- rwf(train_data, h = test_periods, drift = TRUE)
+    snaive_forecast <- snaive(train_data, h = test_periods)
+    MA5_forecast <- forecast(ma(train_data, order = 5), h = test_periods)
+    ets_model <- ets(train_data)
+    ets_forecast <- forecast(ets_model, h = test_periods)
+    hw_model <- HoltWinters(train_data)
+    hw_forecast <- forecast(hw_model, h = test_periods)
+    
+    # Calculate MSE for each model
+    mse <- c(
+      Mean = mean((test_data - mean_forecast$mean)^2),
+      Naive = mean((test_data - naive_forecast$mean)^2),
+      RWD = mean((test_data - rwf_forecast$mean)^2),
+      SNaive = mean((test_data - snaive_forecast$mean)^2),
+      MA5 = mean((test_data - MA5_forecast$mean)^2),
+      ETS = mean((test_data - ets_forecast$mean)^2),
+      HW = mean((test_data - hw_forecast$mean)^2)
+    )
+    
+    # Store results
+    results[[col_name]] <- list(mse = mse)
+    
+    # Print MSE for each model
+    print(paste("MSE for column:", col_name, "\n"))
+    print(mse)
+    
+    # Find and print the best performing model
+    best_model <- names(which.min(mse))
+    print(paste("Best performing model:", best_model, "with MSE:", min(mse)))
+  }
+  
+  return(results)
+}
+```
+
+# Preprocessing Data and Show Dataset Information
+```{r}
+# Filtering dataset based on state to create time series data and convert them to numeraical data
+state_name <- "Alaska" # You can change this to other states
+state_data <- data[data$State.Area==state_name, ]
+state_data$yearmon <- as.yearmon(paste(state_data$Year, state_data$Month), "%Y %m")
+x_labels <- state_data[["yearmon"]]
+state_data <- state_data[order(state_data$yearmon), ]
+state_data <- state_data[, !(names(state_data) %in% c("State.Area", "FIPS.Code", "Year", "Month", "yearmon"))]
+state_data[] <- lapply(state_data, function(x) if(is.character(x)) as.numeric(gsub(",", "",x)) else x)
+rownames(state_data) <- NULL
+
+# Showing basic information about the dataset
+attributes(state_data)
+plot_all_columns(state_data, x_labels)
+acf_all_columns(state_data)
+```
+
+# Apply models to the dataset and plot forecasts on the same figure
+```{r}
+apply_models_all_columns(state_data)
+```
+
+# Explain model output
+```{r}
+#The Mean model, represented by the gray line, calculates the average of all historical data points and uses this as a constant forecast. It's the simplest model and doesn't account for trends or seasonality. For data like "Percent of Labor Force Unemployed in State Area" that show significant fluctuations, this model performs poorly as it fails to capture the dynamics of the data.
+
+
+#The Naive model (red line) uses the last observed value as the forecast for all future periods. It's based on the assumption that the best prediction of what will happen tomorrow is what happened today. This model can be effective for data that don't have clear trends or seasonality, but it's less suitable for data like "Total Employment in State Area" which shows a clear upward trend.
+
+
+#The Random Walk with Drift model (green line) is similar to the Naive model but includes a drift term based on the average change in the data. This allows it to capture some trend in the data. For data like "Percent of Labor Force Employed in State Area" that show a gradual decline, this model might provide more accurate short-term forecasts than the Naive model.
+
+
+#The Seasonal Naive model (blue line) is similar to the Naive model but it accounts for seasonality by using the value from the same season in the previous year as the forecast. This could be particularly useful for data that exhibit strong seasonal patterns, although none of the data in these graphs show clear seasonality.
+
+
+#The Moving Average (12) model (pink line) uses the average of the last 12 observations as the forecast. This smooths out short-term fluctuations and provides a local mean. For data like "Total Unemployment in State Area" that show high volatility, this model can provide a more stable forecast than the Naive model.
+
+
+#The Exponential Smoothing model (purple line) assigns exponentially decreasing weights to older observations. Recent observations have a stronger influence on the forecast. This model can adapt to changes in the data more quickly than the Moving Average model, which could be beneficial for data like "Percent of State Area's Population" that show a changing trend over time.
+
+
+#The Holt-Winters model (yellow line) is the most complex, incorporating trend and seasonality components. It uses separate smoothing equations for the level, trend, and seasonal components of the data. This model could potentially provide the most accurate forecasts for data that exhibit both trend and seasonality, although in these graphs, the seasonal component might not be significant.
+
+
+#Looking at the forecasts, we can see that for most data, the more complex models (Holt-Winters, Exponential Smoothing) tend to follow the recent trends in the data more closely. This is particularly evident in the "Total Employment in State Area" graph, where these models capture the recent uptick in employment.
+```
+
+# Compare models based on their performance
+```{r}
+# I choose Mean Squere Error (MSE) as the performance metric, and the following code will printoput the best performing model for each of the variables in the dataset.
+
+result <- evaluate_models_all_columns(state_data)
+```
+
+
+
+
+
+
+
