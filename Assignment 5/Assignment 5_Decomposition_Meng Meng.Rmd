@@ -1,0 +1,96 @@
+---
+title: "Assignment 5_Decomposition_Meng Meng"
+author: "Meng Meng"
+date: "2024-10-09"
+output: html_document
+---
+
+```{r}
+library(zoo)
+library(readr)
+data <- read_csv("Unemployment in America.csv")
+
+# Filtering dataset based on state to create time series data and convert them to numeraical data
+state_name <- "Alaska" # You can change this to other states
+state_data <- data[data$'State/Area'==state_name, ]
+state_data$yearmon <- as.yearmon(paste(state_data$Year, state_data$Month), "%Y %m")
+x_labels <- state_data[["yearmon"]]
+state_data <- state_data[order(state_data$yearmon), ]
+state_data <- state_data[, !(names(state_data) %in% c("State/Area", "FIPS Code", "Year", "Month", "yearmon"))]
+state_data[] <- lapply(state_data, function(x) if(is.character(x)) as.numeric(gsub(",", "",x)) else x)
+rownames(state_data) <- NULL
+```
+
+```{r}
+library(fpp)
+library(fpp2)
+
+# Np controls the number of period that will be predict by the decomposition models.
+Np <- 15
+
+
+for(i in 1:ncol(state_data)) {
+  col_name <- names(state_data)[i]
+  monthly_ts <- ts(state_data[[i]], frequency = 12)
+  
+  stl_decomp <- stl(monthly_ts,s.window ="periodic")
+  # Plot the comparison between values seasonally adjusted by STL decomposition and original data
+  plot(stl_decomp, main = "STL decomposition results")
+  seasadj_data <- seasadj(stl_decomp)
+  plot(as.vector(monthly_ts), main = "Original Data vs Seasonally Adjusted",
+     ylab = col_name, xlab = "Time")
+  lines(as.vector(seasadj_data), col="Red")
+  legend("topleft", legend = c("Original", "Seasonally Adjusted"),
+       col = c("black", "red"), lty = 1, cex = 0.8)
+  
+
+  # running classic additive and multiplicative decomposition methods and plot their the values of season, trend, and residule
+  additive_decomp_elec <- decompose(monthly_ts, type = "additive")
+  multiplicative_decomp_elec <- decompose(monthly_ts, type = "multiplicative")
+  plot(additive_decomp_elec)
+  plot(multiplicative_decomp_elec)
+  
+  
+  # plot the seasonal adjusted data by additive and multiplicative decomposition methods
+  additive_adjusted_data = seasadj(additive_decomp_elec)
+  multiplicative_adjusted_data = seasadj(multiplicative_decomp_elec)
+  plot(as.vector(multiplicative_adjusted_data), main = "Multiplicative vs Additive Decomposition",
+     ylab = col_name, xlab = "Time")
+  lines(as.vector(additive_adjusted_data), col="Red")
+  legend("topleft", legend = c("Multiplicative", "Additive"),
+       col = c("black", "red"), lty = 1, cex = 0.8)
+  
+  
+  # Make forecast by STL, additive decomposition, and multiplicative decomposition, and plot their forecast
+  n <- length(monthly_ts)
+  plot(as.vector(monthly_ts), ylab = col_name, xlab = "Time", main="forecast by STL, additive, and multiplicative decomposition", col="black", type="l")
+  x <- as.list((n+1):(n+Np))
+  f_stl <- forecast(stl_decomp,h=Np)
+  lines(x=x,y=f_stl$mean, col="purple")
+
+  # Perform additive decomposition
+  additive_trend <- as.vector(additive_decomp_elec$trend)
+  additive_trend <- additive_trend[!is.na(additive_trend)]
+  additive_seasonal <- additive_decomp_elec$seasonal
+  f_additive <- vector("list", Np)
+  for (i in 1:Np) {
+    f_additive[i] <- tail(additive_trend, 1) + additive_seasonal[n + i - 12]
+  }
+  lines(x=x, y=f_additive, col="blue")
+
+  # Performace multiplicative decomposition
+  multiplicative_trend <- as.vector(multiplicative_decomp_elec$trend)
+  multiplicative_trend <- multiplicative_trend[!is.na(multiplicative_trend)]
+  multiplicative_seasonal <- multiplicative_decomp_elec$seasonal
+  f_multiplicative <- vector("list", Np)
+  for (i in 1:Np) {
+    f_multiplicative[i] <- tail(multiplicative_trend, 1) * multiplicative_seasonal[n + i - 12]
+  }
+  lines(x=x, y=f_multiplicative, col="Red")
+  legend("topleft", legend = c("Original Data","STL", "Multiplicative", "Additive"),
+       col = c("black","purple",  "blue", "red"), lty = 1, cex = 0.8)
+  
+  
+  
+}
+```
