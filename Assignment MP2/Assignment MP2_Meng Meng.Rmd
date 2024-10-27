@@ -1,0 +1,143 @@
+---
+title: "Assignment MP2_Meng Meng"
+author: "Meng Meng"
+date: "2024-10-27"
+output: html_document
+---
+
+```{r}
+#Prepare Dataset
+library(readr)
+library(forecast)
+insurance <- read_csv("/Users/maxinenaja/Desktop/insurance.csv")
+```
+
+#1. Create time series
+```{r}
+time_series <- ts(insurance$Quotes, start=c(2002,1), end = c(2005,4), frequency=12)
+```
+
+#2. Verify how much history to include in your analysis.  
+```{r}
+start(time_series)
+end(time_series)
+total_months <- length(time_series)
+#We set the time series data from January 2002 to April 2005. In total, there are 40 monthly observations.
+```
+
+#3. Hypothesize if the dataset has trend, seasonality, or both. 
+```{r}
+plot(time_series, main = "Time Series of Insurance Quote", ylab = "Quotes", xlab = "Time")
+#Trend: There is no clear, sustained upward or downward trend in this series.
+#Seasonality: There appears to be some seasonal pattern with peaks occurring roughly every 6-8 months.
+```
+
+#4. Verify using Acf
+```{r}
+Acf(time_series, main = "ACF of Insurance Quote Time Series")
+#Trend: The highest autocorrelation spikes occur at lag 1, indicating strong short-term dependencies. However, the rapid decline in the autocorrelations implies that there isn’t a strong long-term trend in the data.
+#Seasonality: There's no consistent significant spikes at regular intervals, which means no seasonal pattern shown in the data.
+```
+
+#5. Verify using decomposition
+```{r}
+decomp_ts <- decompose(time_series)
+plot(decomp_ts)
+#Trend: There's a long-term trend of gradual fluctuations over the observed period without consistent increase or decrease.
+#Seasonality: The seasonal component shows a repeating pattern, indicating a strong seasonal pattern in the data. 
+```
+
+#6. Choose an accuracy measure
+```{r}
+#We choose to calculate Mean Squared Error (MSE) as an accuracy measure because it's an effective and commonly used method for evaluating the accuracy of time series forecasting model. It can calculate the average squared difference between the predicted and actual values over a period. The advantages for using MSE are its function to capture both large and small errors, its allowance for differentiation between different models, and its straightforward interpretation of average model performance.
+```
+
+#7. Create a forecast model for the next 12 months. Include Naive, Average, Exponential Smoothing, HoltWinters, and Decomposition (both types). 
+#8. Show model rank with accuracy measures
+```{r}
+#Split the dataset
+train_length <- round(0.8 * total_months)
+training_set <- window(time_series, end = c(2002 + (train_length - 1) / 12))
+testing_set <- window(time_series, start = c(2002 + train_length / 12))
+
+#Naive method
+naive_forecast <- naive(training_set,12)
+naive_mse <- mean((naive_forecast$mean - testing_set)^2)
+
+#Average Method
+mean_forecast <- meanf(training_set,12)
+mean_mse <- mean((mean_forecast$mean - testing_set)^2)
+
+#Exponential Smoothing
+ets_model <- ets(training_set)
+ets_forecast <- forecast(ets_model, h = 12)
+ets_mse <- mean((ets_forecast$mean - testing_set)^2)
+
+#HoltWinters
+hw_model <- hw(training_set)
+hw_forecast <- forecast(hw_model, h = 12)
+hw_mse <- mean((hw_forecast$mean - testing_set)^2)
+
+#Decomposition
+forecast_decompose <- function(data, h = 12, type = "additive") {
+  decomp <- decompose(data, type = type)
+  
+  trend <- decomp$trend
+  seasonal <- decomp$seasonal
+  remainder <- decomp$random
+  
+  trend_model <- tslm(trend ~ time(trend))
+  trend_forecast <- forecast(trend_model, h = h)
+  
+  s <- frequency(data)
+  seasonal_forecast <- rep(seasonal[1:s], length.out = length(data) + h)
+  seasonal_forecast <- ts(seasonal_forecast, start = start(data), frequency = s)
+
+  if (type == "additive") {
+    point_forecast <- trend_forecast$mean + tail(seasonal_forecast, h)
+  } else {
+    point_forecast <- trend_forecast$mean * tail(seasonal_forecast, h)
+  }
+  
+  return(point_forecast)
+}
+
+##Additive Decomposition
+add_forecast <- forecast_decompose(training_set, h=12, type="additive")
+add_mse <- mean((add_forecast - testing_set)^2)
+
+##Multiplicative Decomposition
+mul_forecast <- forecast_decompose(training_set, h=12, type="multiplicative")
+mult_mse <- mean((mul_forecast - testing_set)^2)
+
+#Summarize MSE results
+mse_results <- data.frame(
+    Model = c("Naive", "Average", "Exponential Smoothing", "Holt-Winters", "Additive Decomposition", "Multiplicative Decomposition"),
+    MSE = c(naive_mse, mean_mse, ets_mse, hw_mse, add_mse, mult_mse)
+)
+
+print(mse_results)
+
+#Model Rank
+df <- data.frame(
+  Model = c("Naive", "Average", "Exponential Smoothing", "Holt-Winters", "Additive Decomposition", "Multiplicative Decomposition"),
+  MSE = c(5.564410e+00, 6.590681e+00, 5.564325e+00, 7.655741e+00, 1.264848e+07, 1.307988e+07)
+)
+df$Rank <- rank(df$MSE, ties.method = "min")
+df <- df[order(df$Rank), ]
+print(df)
+```
+
+#9. Choose which models and how are you going to use them for Forecasting
+```{r}
+#Based on the model rank in the above question, I will choose Holt-Winters model for forecaseting because it has the relatively small MSE value. Also, it is suitable for the complex dataset as it can capture trand and seasonality well under this situation.
+```
+
+#10. Provide the forecast for the next 12 months (point and range) and explain why you feel confident with these forecasts
+```{r}
+hw_model <- hw(training_set)
+hw_forecast <- forecast(hw_model, h = 12)
+print(hw_forecast)
+plot(hw_forecast)
+#We can see clear fluctuate trends and seasonal changes over time in the plot. Also, the bule line in the polt is the forecast line for the next 12 months which follows the pattern of recent historical data closely. These features prove that the model captures the recent trends well. Besides, there are precise numerical forecasts for multiple future time periods, showing the uncertainty of the forecast, which will benefit our decision-making. Therefore, I'm confident with these forecasts.
+```
