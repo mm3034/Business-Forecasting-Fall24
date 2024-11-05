@@ -1,0 +1,321 @@
+---
+title: "Midterm_Meng Meng"
+author: "Meng Meng"
+date: "2024-11-04"
+output: html_document
+---
+
+#Import Data
+```{r}
+library(readr)
+sales <- read_csv("/Users/maxinenaja/Desktop/sales-2.csv", col_names = FALSE)
+```
+
+#Plot and Inference
+```{r}
+##Time series plot
+sales_ts <- ts(sales$X2, frequency = 12, start = c(2020,1)) 
+plot(sales_ts)
+#Observations: The sales data from 2020 to 2023 demonstrates a growth trend, starting from approximately 1,500 units in early 2020 and peaking over 20,000 units by 2023. Then, there's a period of high fluctuation in 2023-2024.
+```
+
+#Central Tendency
+```{r}
+##What are the min, max, mean, median, 1st, and 3rd Quartile values of the times series?
+summary(sales_ts)
+#The min value is 1322, the max value is 22397, the mean is 8753, the median is 7246, the 1st quartile is 2892, and the 3rd quartile is 14346.
+
+##Boxplot
+boxplot(sales_ts)
+
+#Observations: The mean sales value is 8753, which is higher than the median, suggesting a slight right skew as higher values pull the mean upwards. The boxplot does not display any obvious outliers, as all points fall within the whiskers. In addition, the boxplot shows the the sales data is asymetric. The range between the 1st and 3rd quartiles is relatively wide, indicating some variability in the middle 50% of the sales data. Given that the sales mean is higher than the median and the upper whisker extends slightly longer, the sales data have a slight positive skew, with a few higher values increasing the mean, which follows the oberservations we get from the time series plot.
+```
+
+#Decompositon
+```{r}
+##Plot the decomposition of the time series
+decomp <- decompose(sales_ts)
+plot(decomp)
+
+##Is the time series seasonal?
+#The time series is seasonal. As we can see that the "seasonal" component of the decomposition plot shows a regular, repeating pattern throughout the entire period from 2020 to 2024. Also, the seasonal fluctuations appear to have a consistent changing pattern and a regular period.
+
+##Aadditive or Multiplicative?
+#The decomposition is additive. Reasons:The y-axis scales for each component (observed, trend, seasonal, random) are consistent and not logarithmic. Also, the time series is decomposed as Observed = Trend + Seasonal + Random.
+
+##Values of the seasonal monthly indices
+seasonal_indices <- decomp$seasonal[1:12]
+print(seasonal_indices)
+#Highest: June(2154.71713)
+#Lowest: January(-1637.61383)
+##Reason behind the high and low values in those months 
+#The demand decreased in January and February because patients encountered new deductibles and post-holiday financial limitations, with a rise in March due to cold and flu season. April is stabilized, followed by a gradual increase in May and June as allergy season begins and elective procedures become more accessible in the summer. The dip in August can be caused by that patients prioritize vacations, with a rebound in September as school-related illnesses increase. A subsequent decline is seen in October and November potentially due to pre-holiday budgeting, with a significant year-end surge in December as patients attempt to utilize benefits before deductibles reset, alongside heightened demand from the flu season.
+
+##Plot for time series adjusted for seasonality
+seasonal_component <- decomp$seasonal
+seasonally_adjusted <- sales_ts - seasonal_component
+plot(sales_ts, main="Actual vs Seasonally Adjusted Time Series",
+     ylab="Sales Value", xlab="Time", col="blue")
+lines(seasonally_adjusted, col="red")
+legend("topleft", legend=c("Actual", "Seasonally Adjusted"),
+       col=c("blue", "red"), lty=1)
+#By looking at the difference between the blue line (Actual) and red line (Seasonally Adjusted), we can observe that the seasonally adjusted data has little difference than the actual data. In fact, the values of the seasonal indices are fluatuating the in range of 2155-(-1638) = 3793 while the actual data fluctuate in the range of 22400-1300 = 21100. Thus, the seasonality have small flucturations in the value of time series.
+```
+
+#Naive Method
+```{r}
+library(forecast)
+naive_model <- naive(sales_ts) 
+
+##Residual analysis
+##Plot of residuals
+residuals <- residuals(naive_model)
+plot(residuals)
+#From the plot of residual, we can observe that as the years goes on, the residuals also increase. Because the sales numbers also increase as the residual increase, there is a correlation between the residual and sales data, indicating that the naive model performing badly.
+
+##Histogram plot of residuals
+hist(residuals)
+#From the histogram of the residuals, we can observe that most of the residuals are clustered in the range of -4000 to 2000, which indicates an asymetic distribution. This can indicates that the naive model performance is not ideal.
+
+##Plot of fitted values vs. residuals
+plot(as.numeric(naive_model$fitted), as.numeric(naive_model$residuals),
+     main="Fitted vs Residuals",
+     xlab="Fitted Values",
+     ylab="Residuals")
+#The residual plot shows a downward trend as fitted values increase, indicating a non-random pattern in the residuals. This suggests that the naive model may not capture the true relationship between predictors and the response, likely due to non-linearity. Additionally, the increasing spread of residuals with higher fitted values implies heteroscedasticity, where the variance of residuals is not constant. These issues indicate that the naive model is not a good fit for the sales dataset.
+
+##Plot of actual values vs. residuals
+plot(as.numeric(sales_ts), as.numeric(naive_model$residuals),
+     main="Actual vs Residuals",
+     xlab="Actual Values",
+     ylab="Residuals")
+#We can observe similar trend in the actual value vs residual value plot. For instance, the residual increase as the actual value increase, indicating that naive model is not a good fit for the sales dataset.
+
+##ACF plot of the residuals
+Acf(residuals(naive_model))
+#From the ACF plot of the residuals, we can observe that there are several peaks at lag other than 0. Therefore, the residuals includes some seasonality, which indicating that the naive model cannot capture all the seasonality from the sales data.
+
+##Five measures of accuracy
+accuracy(naive_model)
+#From the result, we can get ME = 157.275, RMSE = 3029.52, MAE = 2104.495, MPE = 0.6371928, and MAPE = 20.12969, MASE = 0.4670533, and ACF1 = -0.433312.
+
+##Forecast Time series value for next year. Show table and plot
+naive_forecast <- naive(sales_ts, h = 12)
+print(naive_forecast)
+plot(naive_forecast, main = "Naïve Forecast for Next Year", 
+     xlab = "Time", ylab = "Sales Value")
+
+##Summarize Naive forecasting technique
+#The naive model has a relatively high error in both RMSE and MAE. The ME  suggests a slight bias in predictions, though it is relatively small compared to RMSE and MAE. The MPE and MAPE show that the naive model has a reasonable prediction accuracy for smaller values but larger deviations for some cases. 
+#The prediction of the time series value of the one year period is the last value of the input sales data which is 10151.933.
+#By ploting the naive forecasting, we can see that there is a large uncertainty in the prediction even with a 80% confidence interval, indicating that the naive model performs badly.
+```
+
+#Simple Moving Averages
+```{r}
+##Time series plot
+library(TTR)
+sma_3 <- SMA(sales_ts, n = 3)
+sma_6 <- SMA(sales_ts, n = 6)
+sma_9 <- SMA(sales_ts, n = 9)
+plot(sales_ts, ylab = "Sales Value", xlab = "Time")
+lines(sma_3, col = "red")
+lines(sma_6, col = "blue")
+lines(sma_9, col = "green")
+legend("topleft", legend = c("Original", "3-month SMA", "6-month SMA", "9-month SMA"),
+       col = c("black", "red", "blue", "green"), lty = 1)
+#The 3-month SMA (red line) is too responsive to short-term fluctuations, closely following the original data's volatility. The 9-month SMA (green line) is too smooth, potentially missing important medium-term trends. The 6-month SMA (blue line) strikes a good balance, smoothing out short-term noise while still capturing important trends.
+
+##Bonus: Forecast using SMA_6
+sma_6 <- ma(sales_ts, order = 6, centre = FALSE)
+sma_6_ts <- ts(sma_6, start = start(sales_ts), frequency = frequency(sales_ts))
+forecast_sma <- forecast(sma_6_ts, h = 12)
+plot(forecast_sma, main = "6-Month SMA Forecast for Next 12 Months",
+     ylab = "Sales Value", xlab = "Time")
+lines(sma_6_ts, col = "blue")
+legend("topleft", legend = c("Original", "6-month SMA", "Forecast"),
+       col = c("black", "blue", "blue"), lty = c(1, 1, 2))
+
+#Observations: The higher the order, the smoother the line becomes. As the order increases, there's a greater lag in responding to changes in the data. The 3-month SMA still shows some seasonal patterns, while the 9-month SMA almost completely eliminates them. The longer-term trends become more apparent with higher order SMAs. 
+```
+
+#Simple Smoothing
+```{r}
+##Simple smoothing forecast
+ses_model <- ses(sales_ts, h = 12)
+
+alpha <- ses_model$model$par["alpha"]
+#With an alpha = 0.432, the simple exponential smoothing model is giving moderate emphasis to recent observations while still retaining some influence from past values, which means that the overall growing trend still have reasonable impact on the future values while the recent values may change this overall growing trend.
+
+initial_state <- ses_model$model$states[1]
+#The initial state = 1472.029.
+
+sigma <- ses_model$model$sigma2 ^ 0.5
+#The sigma = 2603.101, which signifies the standard deviation of the residuals.
+
+##Residual analysis
+##Plot of residuals
+residuals_ses <- residuals(ses_model)
+plot(residuals_ses)
+#From the plot of residual, we can observe that as the years goes on, the residuals also increase. Because the sales numbers also increase as the residual increase, there is a correlation between the residual and sales data, indicating that the simple smoothing model cannot capture the dramatic change in trend in the later years. But, the plot of residual of simple smoothing is better than the plot of residual of naive model.
+
+##Histogram plot of residuals
+hist(residuals_ses)
+#The histogram plot of the residual of simple smoothing is more symmetric than the plot of naive model, indicating better performance.
+
+##Plot of fitted values vs. residuals
+plot(as.numeric(ses_model$fitted), as.numeric(ses_model$residuals),
+     main="Fitted vs Residuals",
+     xlab="Fitted Values",
+     ylab="Residuals")
+#The plot of the fitted values vs. residual still shows a spreaded cone shape indicating that there is a correlation between the fitted value and residual, which can potentially indicating non-linear relationship in the data.
+
+##Plot of actual values vs. residuals
+plot(as.numeric(sales_ts), as.numeric(ses_model$residuals),
+     main="Actual vs Residuals",
+     xlab="Actual Values",
+     ylab="Residuals")
+#The plot of the actual value vs. residual also shows a spreaded cone shape indicating a strong correlation between the acutal value and residual, which indicating that the model cannot capture all the changes in the data.
+
+##ACF plot of the residuals
+Acf(residuals(ses_model))
+#From the ACF plot, we can observe several spike in lags other than 0 indicating some seasonalities. This indicates that the model cannot capture all the trends in the data. But, the ACF plot of the simple smoothing is better than the one of naive model
+
+##Five measures of accuracy
+accuracy(ses_model)
+#From the result, we can get ME = 521.0807, RMSE = 2556.194, MAE = 1608.255, MPE = 5.757111, and MAPE = 15.49006, MASE = 0.3569223, and ACF1 = -0.1451411.
+
+##Forecast Time series value for next year. Show table and plot
+ses_forecast <- ses(sales_ts, h = 12)
+print(ses_forecast)
+plot(ses_forecast, main = "Simple Smoothing Forecast for Next Year", 
+     xlab = "Time", ylab = "Sales Value")
+
+##Summarize Simple Smoothing forecasting technique
+#The performance of simple smoothing is better than the performance of naive model in terms of almost all of the accuracy measures. Indicating that the simple smoothing model can better modeling and predicting the sales data than the naive model. However,the MPE and MAPE show that the simple smoothing model still has a large deviations for some cases. 
+#The simple smoothing predict the value of 14075.16 for the next year. We can also observe some large uncertainty in the next year prediction based on the 80% and 95% confidence interval
+```
+
+#Holt-Winters
+```{r}
+##Holt-Winters forecast
+hw_model <- hw(sales_ts, 12)
+
+alpha_hw <- hw_model$model$par["alpha"]
+#Alpha controls the level of the time series. A value of 0.318 indicates moderate responsiveness to recent observations, allowing the model to adjust the baseline while still considering historical data.
+
+beta_hw <- hw_model$model$par["beta"]
+#Beta governs the trend component. At 0.0862, it suggests slow adjustment to recent trends, indicating the model reacts cautiously to changes in the trend based on new information.
+
+gamma_hw <- hw_model$model$par["gamma"]
+#Gamma controls the seasonal component. With a very low value, Gamma  implies that the model relies heavily on established seasonal patterns, updating the seasonal effect very slowly in response to recent fluctuations.
+
+cat("\nInitial States:\n")
+cat("Level:", hw_model$model$states[1, "l"], "\n")
+#The value of initial states for the level is 818.4249, which represents the model's initial estimate of the base value of the series, without trend or seasonal effects.
+cat("Trend:", hw_model$model$states[1, "b"], "\n")
+#The value of initial states for the trend is 343.2258, which represents the model's initial estimate of how much the level is increasing or decreasing per period.
+cat("Seasonal:", hw_model$model$states[1, 1:12], "\n")
+# The values of initial states for the seasonal are 818.4249, 343.2258, 1774.076, -1565.1, -1259.728, 1059.152, -814.7662, 753.5157, 2154.785, 120.2898, -57.64645, and 1068.374. They represent the model's initial estimates of the seasonal effects for each period (month, in this case).
+
+sigma_hw <- sqrt(hw_model$model$sigma2)
+#The sigma = 2428.542, which signifies the standard deviation of the residuals. This sigma value is smaller than the sigma of simple smoothing model, which means the holt-winters model performs better as it has smaller standard deviation of the residuals.
+
+##Residual analysis
+##Plot of residuals
+residuals_hw <- residuals(hw_model)
+plot(residuals_hw)
+#The plot residuals shows a flat trend with constrained range of fluctuation means that the Holt-Winters model is good at modeling the changes in the sales data.
+
+##Histogram plot of residuals
+hist(residuals_hw)
+#The histogram of the residuals shows a almost perfect symmetric shape indicating the residuals follows a normal distribution with 0 mean. Indicating little or no correlation between the residual and the data.
+
+##Plot of fitted values vs. residuals
+plot(as.numeric(hw_model$fitted), as.numeric(hw_model$residuals),
+     main="Fitted vs Residuals",
+     xlab="Fitted Values",
+     ylab="Residuals")
+#The plot of the fitted value vs. residual shows a flat trend indicating the the model can modeling most of the changes and flatucation in the data.
+
+##Plot of actual values vs. residuals
+plot(as.numeric(sales_ts), as.numeric(hw_model$residuals),
+     main="Actual vs Residuals",
+     xlab="Actual Values",
+     ylab="Residuals")
+#The plot of the actual  value vs. residual shows a flat trend indicating that there is no/little corelation between the magnitude of the residual and the magnitude of the actual data.
+
+##ACF plot of the residuals
+Acf(residuals(hw_model))
+#The acf shows that there is only one significant spike when lag=7, indicating that while the holt-winters model do not fully modeling the seasonality from the data but the modeling is much better than the one modeled by the naive and simple smoothing methods.
+
+##Five measures of accuracy
+accuracy(hw_model)
+#From the result, we can get ME = -210.377, RMSE = 2052.493, MAE = 1661.449, MPE = -3.401198, and MAPE = 33.49673, MASE = 0.3687275, and ACF1 = -0.02495954.
+
+##Forecast Time series value for next year. Show table and plot
+hw_forecast <- hw(sales_ts, h = 12)
+print(hw_forecast)
+plot(hw_forecast, main = "Holt-Winters Forecast for Next Year", 
+     xlab = "Time", ylab = "Sales Value")
+
+##Summarize Holt-Winters forecasting technique
+#The Holt-Winters model has the lowest RMSE indicating better performance. Holt-Winters model also shows improvements in other metrics. 
+#The model predicts a fluctuated series of value for the next year and they following the general trends in the mid to late 2024. 
+#As the years go on, the uncertainty increase. But, the uncertainty in the late 2024 and early 2025 is reasonablely small.
+```
+
+#Accuracy Summary
+```{r}
+##Comparison of accuracy measures
+accuracy_table <- rbind(
+  Naive = accuracy(naive_model),
+  SES = accuracy(ses_model),
+  HW = accuracy(hw_model)
+)
+rownames(accuracy_table) <- c("Naive Method", "Simple Exponential Smoothing", "Holt-Winters")
+print(accuracy_table)
+
+##Define each forecast method and why it is useful.
+#The Naive model uses the last observed value as the forecast for all future periods, which is simple to implement and understand. It is useful because it can serve as a benchmark for more sophisticated methods, it is a good baseline for comparison, and it requires minimal computation. Simple Smoothing model is a time series forecasting method that gives more weight to recent observations and less weight to past observations. It's useful when working for data without clear trend or seasonality. Also, it's good for short-term forecasting, and easy to understand and implement. Holt-Winters model is triple exponential smoothing method that incorporates level, trend, and seasonality components. It can handle time series with both trend and seasonal patterns and it's good for medium to long-term forecasting.
+
+##Show the best and worst forecast method for each of the accuracy measures:
+#1. ME (Mean Error):
+  #Best: Naive (157.2750) - closest to zero
+  #Worst: SES (521.0807) - furthest from zero
+#2. RMSE (Root Mean Square Error):
+  #Best: Holt-Winters (2052.493) - lowest value
+  #Worst: Naive (3029.520) - highest value
+#3. MAE (Mean Absolute Error):
+  #Best: SES (1608.255) - lowest value
+  #Worst: Naive (2104.495) - highest value
+#4. MPE (Mean Percentage Error):
+  #Best: Naive (0.6371928) - closest to zero
+  #Worst: Holt-Winters (-3.4011985) - furthest from zero
+#5. MAPE (Mean Absolute Percentage Error):
+  #Best: SES (15.49006) - lowest value
+  #Worst: Holt-Winters (33.49673) - highest value
+#6. MASE (Mean Absolute Scaled Error):
+  #Best: SES (0.3569223) - lowest value
+  #Worst: Naive (0.4670533) - highest value
+#7. ACF1 (Autocorrelation at lag 1):
+  #Best: Holt-Winters (-0.02495954) - closest to zero
+  #Worst: Naive (-0.43331200) - furthest from zero
+#Overall Analysis:
+#SES model performs best in MAE, MAPE, MASE measures.
+#Holt-Winters model shows strength in RMSE and ACF1.
+#Naive method performs worst except in ME and MPE.
+```
+
+#Conclusion
+```{r}
+##Summarize
+#The time series data exhibits both trend and seasonality components. The time series shows a clear upward trend from 2020 to late 2023, and the peak values reached approximately 20,000 in 2023. After that, a slight decline is observed in late 2023 into 2024. Strong seasonal fluctuations are present throughout the series. Despite the increasing trend, the seasonal pattern remains consistent. 
+
+##Forecast
+#Based on the above SES and Holt-Winters results, I think the time series will decrease. For the next 2 yeasr, there will be more uncertainty. Thus, the time series may show the flat pattern.
+
+##Rank
+#For the model performance, the Simple Smoothing (SES) method performed best in several accuracy measures (MAE = 1608.255, MAPE = 15.49%). The Holt-Winters showed strength in handling the combined trend and seasonality (RMSE = 2052.493), which also showed a good performance. The worst would be the Naive model as it has the worst accuacy data.
+```
+
