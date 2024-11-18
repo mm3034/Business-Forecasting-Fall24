@@ -1,0 +1,88 @@
+---
+title: "Assignment 6 Regression_Meng Meng"
+author: "Meng Meng"
+date: "2024-11-16"
+output: html_document
+---
+
+```{r}
+library(readr)
+data <- read_csv("/Users/maxinenaja/Desktop/Unemployment in America.csv")
+```
+
+#Find an independent variable to predict your time-series 
+```{r}
+##I choose Total Unemployment in State/Area as an target time series. I'll find a suitable independent variable to predict it.
+cor_matrix <- cor(data[, 5:11])
+correlations_with_unemployment <- cor_matrix["Total Unemployment in State/Area",]
+print(correlations_with_unemployment)
+##Based on the results, I'll choose "Total Civilian Non-Institutional Population in State/Area" as an independent variable to predict the total umemployment in state or area because it has the highest correlation(0.9105689).
+```
+
+#Perform regression
+```{r}
+model <- lm(`Total Unemployment in State/Area` ~ `Total Civilian Non-Institutional Population in State/Area`, data = data)
+```
+
+#Perform Model Acceptance Steps and show the interpretation of the model output
+```{r}
+model_summary <- summary(model)
+print(model_summary)
+##The large F-statistic(1.45e+05) and very small p-value(< 2.2e-16) indicate the model is significant, and the high R-squared(0.8291) suggests good model fit. However, the large residual range(from -586,027 to 1,704,001) suggests some predictions may be far from actual values.
+
+#Check linearity
+plot(data$`Total Civilian Non-Institutional Population in State/Area`, 
+     data$`Total Unemployment in State/Area`, 
+     main = "Scatterplot: Population vs. Unemployment", 
+     xlab = "Total Civilian Non-Institutional Population in State/Area", 
+     ylab = "Total Unemployment in State/Area")
+abline(model, col = "red")
+##There is a positive linear relationship between Total Civilian Non-Institutional Population and Total Unemployment. The data shows a wave-like pattern around the regression line, particularly for higher population values. Also, some outliers are visible at the higher end of the population range (around 30e+06). Therefore, we can conclude that the relationship is not strictly linear throughout the range.
+
+#Check normality
+hist(residuals(model), main = "Histogram of Residuals", xlab = "Residuals")
+##The distribution is right skewed and has potential outliers, especially in the positive tail (right side), which means the normality assumption appears to be violated.
+
+#Check homoscedasticity
+plot(fitted(model), residuals(model), 
+     main = "Residuals vs Fitted", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals")
+abline(h = 0, col = "red")
+#The spread of residuals increases substantially as fitted values increase. Additionaly, the variance of residuals is not constant across different levels of fitted values. It is evident that there's a clear violation of homoscedasticity.
+
+#Check autocorrelation
+library(lmtest)
+dwtest(model)
+## The Durbin-Watson (DW) statistic = 1.3318, which indicates a positive autocorrelation. The extremely small p-value (<2.2e-16) indicates strong evidence against the null hypothesis(there' no autocorrelation).
+
+#Confidence interval
+confint(model)
+##We are 95% confident that the true population intercept lies between -11,547.36 and -8,815.037. And, we are 95% confident that for each one-unit increase in population, unemployment increases between 0.04221517 and 0.04265194 units. Both intervals are relatively narrow, suggesting high precision in estimating the intercept and slope. Also, since 0 is not in the interval, the intercept is significantly different from 0.
+```
+
+#Perform Residual Analysis and explain the insights
+```{r}
+#Plot Residuals vs Fitted
+plot(fitted(model), residuals(model), 
+     main = "Residuals vs Fitted Values", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals")
+abline(h = 0, col = "red")
+###The spread of residuals increases substantially as fitted values increase. Additionaly, the variance of residuals is not constant across different levels of fitted values. It is evident that there's a clear violation of homoscedasticity.
+
+#Normal Q-Q Plot
+qqnorm(residuals(model), main = "Normal Q-Q Plot")
+qqline(residuals(model), col = "red")
+##The Q-Q plot shows significant deviation from the diagonal red line. The distrition is abnormal and S-shaped curve indicates that the residuals have heavier tails than normal distribution.
+
+#Histogram of Residuals
+hist(residuals(model), breaks = 10, 
+     main = "Histogram of Residuals", 
+     xlab = "Residuals", 
+     col = "lightblue")
+##The distribution is right skewed and has potential outliers.
+
+##Summary: The residual analysis reveals three major concerns with the linear regression model: 1) non-linear patterns in the residuals vs. fitted plot. This indicate the relationship between population and unemployment is more complex than a simple linear model. 2) heteroscedasticity shown by increasing spread of residuals for larger populations. This suggests the model's predictions become less reliable for larger areas. 3) non-normal distribution of residuals evidenced by the heavy-tailed Q-Q plot and peaked histogram indicates violated assumptions. These violations suggest the model needs refinement - possibly through non-linear transformations, additional variables, etc., to provide more reliable predictions and statistical inference.
+```
+
