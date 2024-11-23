@@ -1,0 +1,55 @@
+---
+title: "HW7"
+author: "Meng Meng"
+date: "2024-11-22"
+output: html_document
+---
+
+```{r}
+library(readr)
+library(forecast)
+library(zoo)
+data <- read_csv("./Unemployment in America.csv") 
+# Filtering dataset based on state to create time series data and convert them to numeraical data
+state_name <- "Alaska" # You can change this to other states
+state_data <- data[data$'State/Area'==state_name, ]
+state_data$yearmon <- as.yearmon(paste(state_data$Year, state_data$Month), "%Y %m")
+x_labels <- state_data[["yearmon"]]
+state_data <- state_data[order(state_data$yearmon), ]
+state_data <- state_data[, !(names(state_data) %in% c("State/Area", "FIPS Code", "Year", "Month", "yearmon"))]
+state_data[] <- lapply(state_data, function(x) if(is.character(x)) as.numeric(gsub(",", "",x)) else x)
+rownames(state_data) <- NULL
+ts_data <- ts(state_data$`Total Unemployment in State/Area`, frequency=12, start=c(1976,1))
+
+```
+
+# 1. Fit ARIMA model
+## Auto ARIMA to find the best model parameters
+```{r}
+model_fit <- auto.arima(ts_data, seasonal=TRUE)
+summary(model_fit)
+```
+# 2. Residual Analysis
+## Plot residuals
+```{r}
+checkresiduals(model_fit)
+# Based on the Ljung-Box test, we can see that the p-value = 0.9832 that is much larger than 0.05, indicating a strong acceptance to the null hypothesis. In other words, the residuals are most likely independently distributed, and there is no significant autocorrelation remaining in the residuals. Thus, ARIMNA can capture most of the patterns in the data. From the residual plot, and ACF plot, we can find the same trend that there is almost no auto-correlation in the residuals.
+```
+# 3. Forecast next 5 periods
+```{r}
+library(ggplot2)
+forecast_values <- forecast(model_fit, h=5)
+autoplot(forecast_values) +
+  ggtitle("5-Period Forecast of Total Unemployment in State/Area") +
+  xlab("Time") +
+  ylab("Unemployment") +
+  theme_minimal()
+```
+
+# 4. Model Accuracy Metrics
+```{r}
+accuracy_metrics <- accuracy(model_fit)
+print("Model Accuracy Metrics:")
+print(accuracy_metrics)
+# ME = 3.67 indicates a slight positive bias and on average, overestimates 3.67 units, which is reasonably good considering that the scale of the data are in range from 10000 to over 40000. The RMSE is 938.34 and MAE is 263.19, which means that most errors are moderate but there are some large errors are driving up the RMSE. From the residual plot, we can see that there is a lot of unusual residuals in the 2021-2022 periods, which may caused by the COVID-19, indicating a structure break. 
+```
