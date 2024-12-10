@@ -1,0 +1,540 @@
+---
+title: "Final_Meng Meng"
+author: "Meng Meng"
+date: "2024-12-09"
+output: html_document
+---
+#Import Data
+```{r}
+library(readr)
+sales <- read_csv("/Users/maxinenaja/Desktop/TOTALSA.csv")
+```
+
+#Plot and Inference
+```{r}
+##Time series plot
+sales_ts <- ts(sales$`Sales Units(in Millions)`, frequency = 12, start = c(2019,1)) 
+plot(sales_ts)
+#Observations: The series shows relative stability around 17-18 million units from 2019 to 2020. Then, there's a dramatic drop in early 2020, follwed by a recovery. In 2021, there's a high variability with a peak around 18-19 million units early in the year, followed by a decline. The trend indicated a slightly increase trend from 2022 to 2024. The seasonality pattern is not strongly visible in this data.
+```
+
+#Central Tendency
+```{r}
+##What are the min, max, mean, median, 1st, and 3rd Quartile values of the times series?
+summary(sales_ts)
+#The min value is 8.944, the max value is 18.697, the mean is 15.612, the median is 15.938, the 1st quartile is 14.189, and the 3rd quartile is 16.966. All unit in millions.
+
+##Boxplot
+boxplot(sales_ts)
+
+#Observations: The data reveals that U.S. car sales during this period had a median of 15.938 million units, slightly higher than the mean of 15.612 million units, suggesting a slight negative skew. The data spans from a minimum of 8.944 million units to a maximum of 18.697 million units, with the interquartile range between 14.189 and 16.966 million units showing where most sales activity occurred. The box plot clearly identifies the sales drop as a statistical outlier, while the bulk of the data clusters in the higher ranges, particularly between the median and third quartile. The asymmetric whiskers and single low outlier point to the market experiencing more significant downside events than upside variance during this period.
+```
+
+#Decompositon
+```{r}
+##Plot the decomposition of the time series
+decomp <- decompose(sales_ts)
+plot(decomp)
+
+##Is the time series seasonal?
+#Yes, the sales data is clearly seasonal, showing a regular pattern that repeats approximately every 12 months, as visible in the seasonal component of the decomposition plot.
+
+##Aadditive or Multiplicative?
+#The decomposition is additive. Reasons:The y-axis scales for each component (observed, trend, seasonal, random) are consistent and not logarithmic. Also, the time series is decomposed as Observed = Trend + Seasonal + Random.
+
+##Values of the seasonal monthly indices
+seasonal_indices <- decomp$seasonal[1:12]
+print(seasonal_indices)
+#Highest: January (0.72)
+#Lowest: April (-0.52)
+
+##Reason behind the high and low values in those months 
+#These patterns could be related to typical business or economic cycles - January often sees increased activity due to new year budgets and post-holiday business resumption, while April might show lower activity due to fiscal year transitions or seasonal business slowdowns.
+
+##Plot for time series adjusted for seasonality
+seasonal_component <- decomp$seasonal
+seasonally_adjusted <- sales_ts - seasonal_component
+plot(sales_ts, main="Actual vs Seasonally Adjusted Time Series",
+     ylab="Sales Value", xlab="Time", col="blue")
+lines(seasonally_adjusted, col="red")
+legend("topleft", legend=c("Actual", "Seasonally Adjusted"),
+       col=c("blue", "red"), lty=1)
+#By looking at the difference between the blue line (Actual) and red line (Seasonally Adjusted), we can observe that the seasonally adjusted data has little difference than the actual data. The seasonal fluctuations appear relatively modest compared to the overall trend and major events (like the sharp drop in 2020), as evidenced by the close tracking between the actual and seasonally adjusted lines, with only small deviations between them.
+```
+
+#Naive Method
+```{r}
+library(forecast)
+naive_model <- naive(sales_ts) 
+
+##Residual analysis
+##Plot of residuals
+residuals <- residuals(naive_model)
+plot(residuals)
+#The residual analysis shows a clear pattern over time from 2019 to 2024, with a notable outlier spike around early 2020. The residuals generally oscillate around zero with most values falling between -2 and 2 units, suggesting some systematic patterns that are not captured by the naive model.
+
+##Histogram plot of residuals
+hist(residuals)
+#The histogram of the residuals displays an approximately normal distribution with a slight negative skew, evidenced by the longer left tail and the outlier around -6. The bulk of residuals are concentrated around zero, with the highest frequency occurring slightly above zero, indicating generally good model fit but with some potential systematic bias.
+
+##Plot of fitted values vs. residuals
+plot(as.numeric(naive_model$fitted), as.numeric(naive_model$residuals),
+     main="Fitted vs Residuals",
+     xlab="Fitted Values",
+     ylab="Residuals")
+#The fitted values vs. residuals plot suggests relatively constant variance across fitted values, with most points scattered randomly between -2 and 2. However, there are a few notable outliers, particularly in the lower fitted values range, and a slight pattern might be present as the spread of residuals varies somewhat across different fitted values.
+
+##Plot of actual values vs. residuals
+plot(as.numeric(sales_ts), as.numeric(naive_model$residuals),
+     main="Actual vs Residuals",
+     xlab="Actual Values",
+     ylab="Residuals")
+#The actual values vs. residuals plot shows a similar pattern to the fitted values plot, indicating no strong systematic relationship between residual size and actual values. The spread of residuals appears relatively consistent across different actual values, though there are a few outliers at both ends of the actual value range.
+
+##ACF plot of the residuals
+Acf(residuals(naive_model))
+#The ACF plot of residuals shows most autocorrelations falling within the significance bounds (dashed lines), suggesting that the residuals are largely independent. A few spikes barely touch or slightly exceed the significance bounds, but these could be due to random chance rather than true autocorrelation, indicating the model has captured most of the temporal dependence in the data.
+
+##Five measures of accuracy
+accuracy(naive_model)
+#From the result, we can get ME = -0.01277049, RMSE = 1.184281, MAE = 0.7771311, MPE = -0.4826249, and MAPE = 5.48124, MASE = 0.3223567, and ACF1 = 0.0706958.
+
+##Forecast Time series value for next year. Show table and plot
+naive_forecast <- naive(sales_ts, h = 12)
+print(naive_forecast)
+plot(naive_forecast, main = "Naïve Forecast for Next Year", 
+     xlab = "Time", ylab = "Sales Value")
+
+##Summarize Naive forecasting technique
+#The naïve forecasting technique shown here is a simple but fundamental approach that essentially uses the last observed value as the forecast for all future periods. In this case, it's predicting a constant value of approximately 16.191 for all future periods, as shown by the horizontal blue line in the forecast region.
+
+##How good is the accuracy?
+#The accuracy metrics indicate a moderate model performance with because the Mean Error is low (-0.013), suggesting minimal systematic bias; there's a moderate prediction error, as the Root Mean Square Error (RMSE) is 1.184; the Mean Absolute Percentage Error (MAPE) of 5.48% is reasonable for business forecasting; and the low ACF1 value of 0.071 means the autocorrelation in the residuals is minimal.
+
+##What does it predict the time series value will be in one year?
+#The model predicts that the time series value will be stable at 16.191 within one year, with an 80% confidence interval of approximately [11.16, 21.22] and a 95% confidence interval of [8.49, 23.89] for January 2025. 
+
+##Other observation
+#The time series shows a significant drop around 2020, followed by a recovery and stabilization. The prediction intervals (shown in gray shading) widen considerably as we move further into the forecast horizon, appropriately reflecting increasing uncertainty over time. The model assumes no seasonality or trend, which might be a limitation if these patterns exist in the underlying data.
+```
+
+#Simple Moving Averages
+```{r}
+##Time series plot
+library(TTR)
+sma_3 <- SMA(sales_ts, n = 3)
+sma_6 <- SMA(sales_ts, n = 6)
+sma_9 <- SMA(sales_ts, n = 9)
+plot(sales_ts, ylab = "Sales Value", xlab = "Time")
+lines(sma_3, col = "red")
+lines(sma_6, col = "blue")
+lines(sma_9, col = "green")
+legend("topleft", legend = c("Original", "3-month SMA", "6-month SMA", "9-month SMA"),
+       col = c("black", "red", "blue", "green"), lty = 1)
+#The 3-month SMA (red line) is too responsive to short-term fluctuations, closely following the original data's volatility. The 9-month SMA (green line) is too smooth, potentially missing important medium-term trends. The 6-month SMA (blue line) strikes a good balance, smoothing out short-term noise while still capturing important trends.
+
+##Bonus: Forecast using SMA_6
+sma_6 <- ma(sales_ts, order = 6, centre = FALSE)
+sma_6_ts <- ts(sma_6, start = start(sales_ts), frequency = frequency(sales_ts))
+forecast_sma <- forecast(sma_6_ts, h = 12)
+plot(forecast_sma, main = "6-Month SMA Forecast for Next 12 Months",
+     ylab = "Sales Value", xlab = "Time")
+lines(sma_6_ts, col = "blue")
+legend("topleft", legend = c("Original", "6-month SMA", "Forecast"),
+       col = c("black", "blue", "blue"), lty = c(1, 1, 2))
+
+#Observations: The higher the order, the smoother the line becomes. As the order increases, there's a greater lag in responding to changes in the data. The 3-month SMA still shows some seasonal patterns, while the 9-month SMA almost completely eliminates them. The longer-term trends become more apparent with higher order SMAs. 
+```
+
+#Simple Smoothing
+```{r}
+##Simple smoothing forecast
+ses_model <- ses(sales_ts, h = 12)
+
+alpha <- ses_model$model$par["alpha"]
+#With an alpha = 0.999, the simple exponential smoothing model is giving more weight to recent observations (less smoothing) and very little weight is given to historical values. This signifies the smoothing effect on the data will be minimal and the forecast will follow recent patterns very closely.
+
+initial_state <- ses_model$model$states[1]
+#The initial state = 16.97
+
+sigma <- ses_model$model$sigma2 ^ 0.5
+#The sigma = 1.1941, which signifies the standard deviation of the residuals.
+
+##Residual analysis
+##Plot of residuals
+residuals_ses <- residuals(ses_model)
+plot(residuals_ses)
+#From the plot of residual, we can observe that the residuals mostly fluctuate around zero with one major spike during 2020, indicating a significant model deviation during that period. The residuals show relatively consistent variance outside of this period, suggesting reasonable model stability in normal conditions.
+
+##Histogram plot of residuals
+hist(residuals_ses)
+#The histogram of residuals shows an approximately normal distribution with a slight right skew and some outliers in the left tail. The concentration of residuals around zero with a symmetric bell-shaped pattern indicates that the model's errors are reasonably normally distributed, which is a desirable property for forecasting models.
+
+##Plot of fitted values vs. residuals
+plot(as.numeric(ses_model$fitted), as.numeric(ses_model$residuals),
+     main="Fitted vs Residuals",
+     xlab="Fitted Values",
+     ylab="Residuals")
+#The plot of the fitted values vs. residual still shows no clear pattern or systematic trend in the scatter of points, suggesting that the model's assumptions about constant variance are generally met. However, there are a few outliers at the lower end of the fitted values, corresponding to the sharp disruption in the data.
+
+##Plot of actual values vs. residuals
+plot(as.numeric(sales_ts), as.numeric(ses_model$residuals),
+     main="Actual vs Residuals",
+     xlab="Actual Values",
+     ylab="Residuals")
+#The plot of the actual value vs. residual similarly shows no obvious pattern or trend in the residuals across different actual values of the series. This indicates that the model's performance is relatively consistent across different levels of the actual data, though again with notable outliers during extreme period.
+
+##ACF plot of the residuals
+Acf(residuals(ses_model))
+#From the ACF plot, we can observe that most autocorrelations fall within the significance bounds (blue dashed lines), indicating that the residuals are largely independent. The lack of significant autocorrelation patterns suggests that the model has captured most of the systematic patterns in the data, though there might be some minor remaining structure at certain lags.
+
+##Five measures of accuracy
+accuracy(ses_model)
+#From the result, we can get ME = -0.01257638, RMSE = 1.1747, MAE = 0.7646039, MPE = -0.4749613, and MAPE = 5.392913, MASE = 0.3171604, and ACF1 = 0.07078218.
+
+##Forecast Time series value for next year. Show table and plot
+ses_forecast <- ses(sales_ts, h = 12)
+print(ses_forecast)
+plot(ses_forecast, main = "Simple Smoothing Forecast for Next Year", 
+     xlab = "Time", ylab = "Sales Value")
+
+##Summarize Simple Smoothing forecasting technique
+#The Simple Smoothing forecasting technique applied to this time series shows a fairly stable forecast pattern, with a constant predicted value of 16.19093 million units across all future periods. This flat forecast line is characteristic of simple exponential smoothing, which uses a weighted average of past observations with more recent values having higher weights (as indicated by the high alpha value of 0.999 we found earlier). The prediction intervals (shown in blue and grey shading) widen as we forecast further into the future, reflecting increasing uncertainty over time.
+
+##How good is the accuracy?
+#The accuracy metrics is quite similar as the one of naïve method, which suggest a moderate model performance.
+
+##What does it predict the time series value will be in one year?
+#The model predicts that the sales value will remain constant at 16.19093 million units throughout the next year. This constant forecast reflects the nature of simple exponential smoothing, which assumes no trend or seasonal patterns in the data, though the prediction intervals suggest the actual values could range from approximately 9 to 23 million units (95% confidence interval) by the end of 2024.
+
+##Other observation
+#The prediction intervals grow wider over time, indicating increasing uncertainty in the forecast. The relatively small gap between the 80% and 95% prediction intervals and the model's handling of the disruption in 2020 suggest that while the model can capture the overall level of the series, it might not be ideal for capturing sudden changes or strong patterns in the data.
+```
+
+#Holt-Winters
+```{r}
+##Holt-Winters forecast
+hw_model <- hw(sales_ts, 12)
+
+alpha_hw <- hw_model$model$par["alpha"]
+#With an alpha = 0.999, the simple exponential smoothing model is giving more weight to recent observations (less smoothing) and very little weight is given to historical values. This signifies the smoothing effect on the data will be minimal and the forecast will follow recent patterns very closely.
+
+beta_hw <- hw_model$model$par["beta"]
+#The beta value of 0.00412 represents the trend smoothing parameter, and such small value indicates that the model is giving very little weight to trend changes in the time series, suggesting that the trend component is relatively stable or that the model considers historical trend changes to be less relevant for future predictions.
+
+gamma_hw <- hw_model$model$par["gamma"]
+#When gamma is pretty low as 0.000101, the model essentially maintains an almost constant seasonal pattern throughout the forecast period, with very minimal updates to the seasonal factors based on new observations.
+
+cat("\nInitial States:\n")
+cat("Level:", hw_model$model$states[1, "l"], "\n")
+#The value of initial states for the level is 818.4249, which represents the model's initial estimate of the base value of the series, without trend or seasonal effects.
+cat("Trend:", hw_model$model$states[1, "b"], "\n")
+#The value of initial states for the trend is 343.2258, which represents the model's initial estimate of how much the level is increasing or decreasing per period.
+cat("Seasonal:", hw_model$model$states[1, 1:12], "\n")
+#The values of initial states for the seasonal are 17.36502, -0.05385736, 0.2200484, -0.1869791, 0.02663439, -0.06198126, -0.1063866, -0.08289231, -0.3901113, -0.274068, -0.5333393, and -0.01854329. They represent the model's initial estimates of the seasonal effects for each month.
+
+sigma_hw <- sqrt(hw_model$model$sigma2)
+#The sigma value represents the standard deviation of the forecast errors or residuals. A sigma value of 1.3535 means that approximately 68% of future values are expected to fall within ±1.3535 units of the forecast value (assuming normal distribution), and 95% within ±2.707 units (2 × 1.3535).
+
+##Residual analysis
+##Plot of residuals
+residuals_hw <- residuals(hw_model)
+plot(residuals_hw)
+#The plot residuals shows a flat trend with constrained range of fluctuation means that the Holt-Winters model is good at modeling the changes in the sales data.
+
+##Histogram plot of residuals
+hist(residuals_hw)
+#The histogram of the residuals shows a almost perfect symmetric shape indicating the residuals follows a normal distribution with 0 mean. Indicating little or no correlation between the residual and the data.
+
+##Plot of fitted values vs. residuals
+plot(as.numeric(hw_model$fitted), as.numeric(hw_model$residuals),
+     main="Fitted vs Residuals",
+     xlab="Fitted Values",
+     ylab="Residuals")
+#The plot of the fitted value vs. residual shows a flat trend indicating the the model can modeling most of the changes and flatucation in the data.
+
+##Plot of actual values vs. residuals
+plot(as.numeric(sales_ts), as.numeric(hw_model$residuals),
+     main="Actual vs Residuals",
+     xlab="Actual Values",
+     ylab="Residuals")
+#The plot of the actual  value vs. residual shows a flat trend indicating that there is no/little corelation between the magnitude of the residual and the magnitude of the actual data.
+
+##ACF plot of the residuals
+Acf(residuals(hw_model))
+#The acf shows that there is only one significant spike when lag=7, indicating that while the holt-winters model do not fully modeling the seasonality from the data but the modeling is much better than the one modeled by the naive and simple smoothing methods.
+
+##Five measures of accuracy
+accuracy(hw_model)
+#From the result, we can get ME = 0.02662853, RMSE = 1.165843, MAE = 0.8340627, MPE = -0.1741844, and MAPE = 5.741569, MASE = 0.3459721, and ACF1 = 0.06728398.
+
+##Forecast Time series value for next year. Show table and plot
+hw_forecast <- hw(sales_ts, h = 12)
+print(hw_forecast)
+plot(hw_forecast, main = "Holt-Winters Forecast for Next Year", 
+     xlab = "Time", ylab = "Sales Value")
+
+##Summarize Holt-Winters forecasting technique
+#The Holt-Winters forecasting technique for this time series demonstrates a more dynamic forecast, showing slight variations in predicted values that range from 15.03 to 15.59 million units. The method's parameters indicate that the model heavily weights recent observations while maintaining stable trend and seasonal components.
+
+##How good is the accuracy?
+#The Holt-Winters forecast shows comparable accuracy to the previous forecasting methods, with slightly better accuracy metrics.
+
+##What does it predict the time series value will be in one year?
+#The Holt-Winters model predicts that by December 2024, the sales value will be 15.41090 million units. The model provides prediction intervals suggesting we can be 80% confident that the actual value will fall between 9.82 and 20.99 million units, and 95% confident it will fall between 6.87 and 23.95 million units.
+
+##Other observation
+#A notable observation is that while the prediction intervals widen considerably over time, they're more realistic as they account for both trend and seasonal variations. The forecast shows subtle fluctuations rather than a flat line, suggesting the model captures more nuanced patterns in the data, though the very low beta and gamma values result in relatively stable predictions that don't show strong trend or seasonal effects.
+```
+
+#ARIMA or Box-Jenkins
+```{r}
+##Is time series data stationary?
+library(tseries)
+adf_test <- adf.test(as.vector(sales_ts))
+print("Augmented Dickey-Fuller test's p value is ")
+print(adf_test$p.value)
+# The p-value is 0.09624 >= 0.05, which means the series could be non-stationary.
+
+#Verify
+kpss_test <- kpss.test(as.vector(sales_ts))
+# We can verify the stationary of the time series data by KPSS (Kwiatkowski-Phillips-Schmidt-Shin) test.
+```
+
+```{r}
+analyze_stationarity <- function(data, max_diff = 12) {
+  if (adf_test$p.value < 0.05) {
+    cat("\nTime series is already stationary (ADF p-value < 0.05)\n")
+    return(data)
+  }
+  
+  # If not stationary, try differencing
+  diff_count <- 0
+  current_data <- data
+  
+  while (diff_count < max_diff) {
+    diff_count <- diff_count + 1
+    current_data <- diff(current_data)
+    
+    adf_result <- adf.test(current_data)
+    cat(sprintf("\nAfter %d difference(s):\n", diff_count))
+    cat(sprintf("\nAugmented Dickey-Fuller test's p value is: %f\n", adf_result$p.value))
+    
+    if (adf_result$p.value < 0.05) {
+      cat(sprintf("\nTime series becomes stationary after %d difference(s)\n", diff_count))
+      return(current_data)
+    }
+  }
+  
+  cat("\nWarning: Time series did not achieve stationarity after", max_diff, "differences\n")
+  return(current_data)
+}
+
+##How many differences are needed to make it stationary?
+diffed_data <- analyze_stationarity(sales_ts)
+#The result shows 1 difference is needed to make it stationary (passing the Augmented Dickey-Fuller test)
+```
+```{r}
+##Is Seasonality component needed?
+auto.arima(sales_ts)
+#The seasonality component is needed for this time series because the presence of the seasonal MA term (sma1 = -0.3536) in the model and its statistical significance (the standard error 0.1912 is smaller than half the coefficient value).
+```
+```{r}
+##Plot the Time Series, ACF, and PACF chart of the differenced series.
+tsdisplay(diff(sales_ts, difference = 1))
+
+##Possible ARIMA models
+# Because there is no significant spikes or clear pattern in the ACF plot and PACF plot except for lag 4 in the PCAF and no clear cutoff point in the PACF plot, possible ARIMA models can be 1. ARIMA(0,1,0) which is a simple random walk model since neither ACF nor PACF show strong patterns; 2. ARIMA(1,1,0) or ARIMA(0,1,1) which are adding either an AR(1) or MA(1) term to capture any minor autocorrelation; 3. ARIMA(1,1,1) which to see if combining both AR and MA terms improves the fit.
+```
+
+```{r}
+compare_arima_models <- function(ts_data) {
+  # List of models to test
+  models <- list(
+    list(order = c(0,1,0), name = "ARIMA(0,1,0)"),
+    list(order = c(1,1,0), name = "ARIMA(1,1,0)"),
+    list(order = c(0,1,1), name = "ARIMA(0,1,1)"),
+    list(order = c(1,1,1), name = "ARIMA(1,1,1)")
+  )
+  
+  # Create results dataframe
+  results <- data.frame(
+    Model = character(),
+    AIC = numeric(),
+    BIC = numeric(),
+    Sigma2 = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  # Fit models and collect metrics
+  for (model in models) {
+    fit <- arima(ts_data, order = model$order)
+    
+    results <- rbind(results, data.frame(
+      Model = model$name,
+      AIC = AIC(fit),
+      BIC = BIC(fit),
+      Sigma2 = fit$sigma2,
+      stringsAsFactors = FALSE
+    ))
+  }
+  
+  # Round numeric columns to 3 decimal places
+  results[,2:4] <- round(results[,2:4], 3)
+  
+  # Print formatted results
+  print(knitr::kable(results, 
+                     format = "simple",
+                     col.names = c("Model", "AIC", "BIC", "Sigma²")))
+  
+  return(results)
+}
+# Show the AIC, BIC, and Sigma^2 for the possible models.
+results <- compare_arima_models(sales_ts)
+
+#Based on the above AIC, BIC, and Sigma^2 values, which model will you select?
+# I would select the ARIMA(0,1,0) model because ARIMA(0,1,0) has the lowest AIR and BIC. Although ARIMA(1,1,1) has the lowest  Sigma² (1.319), the difference in residual variance is relatively small compared to ARIMA(0,1,0) (1.403). Thus, by parsimony principle and more complex models don't provide enough improvement to justify their additional parameters, I would choose ARIMA(0,1,0).
+
+# What is the final formula for ARIMA with the coefficients? 
+model_010 <- arima(sales_ts, order=c(0,1,0))
+print(model_010$coef)
+# The final formular for the ARIMA(0,1,0) is Yt = Yt-1 + εt, which means that the current value (Yt) equals the previous value (Yt-1) plus a random error term (εt). This can also be rewritten as (1 - B)Yt = εt
+```
+
+```{r}
+# Perform Residual Analysis for this technique. 
+# Do a plot of residuals. What does the plot indicate?
+residuals_model_010 <- residuals(model_010)
+plot(residuals_model_010)
+# It shows fluctuations around zero with one notable outlier around early 2020, likely corresponding to the pandemic's impact.The overall pattern shows that ARIMA(0,1,0) captures most of the underlying trends, but struggled with this exceptional event.
+
+# Do a Histogram plot of residuals. What does the plot indicate?
+hist(residuals_model_010)
+# It demonstrates a roughly normal distribution, which is a positive indication for ARIMA(0,1,0). With most residuals concentrated around zero it suggests our model's errors follow an approximately normal distribution.
+
+
+# Plot of fitted values vs. residuals
+model_010$fitted <- sales_ts - residuals_model_010
+plot(as.numeric(model_010$fitted), as.numeric(model_010$residuals),
+     main="Fitted vs Residuals",
+     xlab="Fitted Values",
+     ylab="Residuals")
+# It shows no clear pattern or systematic variation in the spread of residuals across different fitted values. This suggests ARIMA(0,1,0) is performing consistently across different predicted values.
+
+# Plot of actual values vs. residuals
+plot(as.numeric(sales_ts), as.numeric(model_010$residuals),
+     main="Actual vs Residuals",
+     xlab="Actual Values",
+     ylab="Residuals")
+# It shows no clear pattern or systematic relationship between the actual values and the residuals. This shows ARIMA(0,1,0)'s predictions are consistent across the range of observed values.
+
+
+# Do an ACF plot of the residuals? What does this plot indicate?
+Acf(residuals_model_010)
+# It shows that most autocorrelations fall within the significance bounds. This suggests that the residuals are largely independent of each other and that ARIMA(0,1,0) has captured most of the temporal dependencies in the data.
+
+```
+
+```{r}
+#	Print the five measures of accuracy for this forecasting technique.
+accuracy(model_010)
+```
+
+```{r}
+#	Print the five measures of accuracy for this forecasting technique.
+one_year_pred_arima <- forecast(model_010, h = 12)
+print(one_year_pred_arima)
+plot(one_year_pred_arima, main = "ARIMA Forecast for Car Sales in the next one year")
+```
+
+```{r}
+#	Print the five measures of accuracy for this forecasting technique.
+two_year_pred_arima <- forecast(model_010, h = 24)
+print(two_year_pred_arima)
+plot(two_year_pred_arima, main = "ARIMA Forecast for Car Sales in the next two years")
+```
+
+```{r}
+#	Summarize this forecasting technique
+# How good is the accuracy?
+# The model's accuracy metrics show a relatively good fit, with a Mean Absolute Percentage Error (MAPE) of 5.39%, indicating that on average, the forecast is off by about 5.4% from actual values. The Root Mean Square Error (RMSE) of 1.17 and Mean Absolute Error (MAE) of 0.76 are relatively small compared to the scale of the data, suggesting reasonable accuracy, though the widening confidence intervals indicate increasing uncertainty in future predictions.
+
+# What does it predict time series will be in one year and the next two years?
+# The model predicts that car sales will maintain a stable level of approximately 16.19 units throughout the forecast period, with this value remaining constant for both one and two years ahead. However, the confidence intervals widen significantly over time, with the 95% confidence interval ranging from about 8.5 to 23.9 units by January 2025, and from about 4.8 to 27.6 units by February 2026, indicating substantial uncertainty in these longer-term predictions.
+
+# Other observation
+# A notable observation is that while the historical data shows considerable volatility, including a major downturn in 2020 and subsequent recovery, the forecast is unusually flat, which is a characteristic of the ARIMA(0,1,0) model chosen. The widening confidence intervals are particularly important as they suggest that while the point forecast is stable, there's significant uncertainty about future values, especially in the longer term, which could be crucial for business planning and risk assessment.
+```
+
+#Accuracy Summary
+```{r}
+##Comparison of accuracy measures
+#Get SMA results
+sma_fitted_9 <- ts(sma_9, start = start(sales_ts), frequency = frequency(sales_ts))
+#Remove NA values that occur at the start of SMA
+sma_fitted_9 <- na.omit(sma_fitted_9)
+sales_ts_trimmed <- window(sales_ts, start=time(sma_fitted_9)[1])
+sma_accuracy_9 <- accuracy(sma_fitted_9, sales_ts_trimmed)
+
+sma_fitted_6 <- sma_6_ts
+sma_fitted_6 <- na.omit(sma_fitted_6)
+sales_ts_trimmed <- window(sales_ts, start=time(sma_fitted_6)[1])
+sma_accuracy_6 <- accuracy(sma_fitted_6, sales_ts_trimmed)
+
+sma_fitted_3 <- ts(sma_3, start = start(sales_ts), frequency = frequency(sales_ts))
+sma_fitted_3 <- na.omit(sma_fitted_3)
+sales_ts_trimmed <- window(sales_ts, start=time(sma_fitted_3)[1])
+sma_accuracy_3 <- accuracy(sma_fitted_3, sales_ts_trimmed)
+
+
+#Create comparison table of accuracy measures
+accuracy_table <- rbind(
+  Naive = accuracy(naive_model),
+  SES = accuracy(ses_model),
+  HW = accuracy(hw_model),
+  ARIMA = accuracy(model_010),
+  SMA9 = sma_accuracy_9,
+  SMA6 = sma_accuracy_6,
+  SMA3 = sma_accuracy_3
+)
+
+#Set descriptive row names
+rownames(accuracy_table) <- c("Naive Method", 
+                            "Simple Exponential Smoothing", 
+                            "Holt-Winters",
+                            "ARIMA(0,1,0)",
+                            "Simple Moving Average (9)",
+                            "Simple Moving Average (6)",
+                            "Simple Moving Average (3)")
+
+#Round all numeric values to 4 decimal places
+accuracy_table <- round(accuracy_table, 4)
+
+#Print the formatted table
+print(accuracy_table)
+
+# Separately define each forecast methods and why it is useful.
+# Naive Method assumes the next value equals the current value, serving as a simple baseline benchmark that performs surprisingly well with a low ME of -0.0128. Simple Exponential Smoothing uses weighted averages of past observations with exponentially decreasing weights, showing improved accuracy over Naive with lower RMSE and MAE. Holt-Winters handles both trend and seasonality in data but shows slightly higher bias in this case with ME of 0.0266, while ARIMA(0,1,0) performs similarly to SES but with a higher MASE of 0.9842.
+# Simple Moving Average with different window sizes (3, 6, 9 periods) calculates means of recent observations, with SMA(6) emerging as the overall best performer with lowest MAE (0.5646), MAPE (3.9794), and MASE (0.2959).
+
+# Show the best and worst forecast method for each of the accuracy measures. 
+cat("\nComparison Summary:\n")
+cat("Best model by different metrics:\n")
+cat("Lowest ME (least bias):", rownames(accuracy_table)[which.min(abs(accuracy_table[,"ME"]))], "\n")
+cat("Lowest RMSE:", rownames(accuracy_table)[which.min(accuracy_table[,"RMSE"])], "\n")
+cat("Lowest MAE:", rownames(accuracy_table)[which.min(accuracy_table[,"MAE"])], "\n")
+cat("Lowest MAPE:", rownames(accuracy_table)[which.min(accuracy_table[,"MAPE"])], "\n")
+cat("Lowest MASE:", rownames(accuracy_table)[which.min(accuracy_table[,"MASE"])], "\n")
+```
+
+#Conclusion
+```{r}
+##Summarize
+#The time series shows several distinct phases: a stable period around 17-18 million units in 2019, followed by a dramatic drop to around 9 million units in early 2020, then a volatile recovery period through 2021 with peaks around 18-19 million units, and finally a stabilization phase from 2022-2024 around 15-16 million units. This pattern suggests that while the series has recovered from the sharp declune, it has settled at a lower level than values of previous declined periods.
+
+##Forecast
+#All of the forecasting methods suggest the time series will remain relatively stable around 15-16 million units over the next year, with only minor fluctuations. Given the recent stability in the data and the consistent forecasts from all methods, I believe this flat pattern is likely to continue into the second year, though with increasing uncertainty as shown by the widening prediction intervals.
+
+##Rank
+#Based on the comprehensive accuracy metrics, Simple Moving Average (6) appears to be the best performing method overall, with the lowest MAE (0.5646), MAPE (3.9794), and MASE (0.2959). Simple Moving Average (3) comes in second with the lowest RMSE (0.9145), while ARIMA(0,1,0) ranks third with the least bias (ME = -0.0123). The other methods, including Holt-Winters, Simple Exponential Smoothing, and Simple Moving Average (9), generally show poorer performance across multiple metrics, with Simple Moving Average (9) consistently performing the worst with highest RMSE (1.7291) and MAPE (8.4287).
+```
